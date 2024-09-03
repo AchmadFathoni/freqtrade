@@ -101,6 +101,7 @@ target/
 .python-version
 
 .env
+.direnv
 .venv
 .idea
 .vscode
