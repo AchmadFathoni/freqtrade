@@ -32,6 +32,7 @@
           python-pkgs.pip
           python-pkgs.virtualenv
         ]))
+        pkgs.zlib
         (pkgs.ta-lib.overrideAttrs (finalAttrs: previousAttrs: {
           prePatch = ''sed -i.bak "s|0.00000001|0.000000000000000001 |g" src/ta_func/ta_utility.h'';
         }))
@@ -41,6 +42,7 @@
         inherit buildInputs;
         shellHook = ''
           export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
+          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH"
           source .venv/bin/activate
         '';
       };
