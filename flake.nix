@@ -28,7 +28,6 @@
       pkgs = nixpkgs.legacyPackages.${system};
       buildInputs = [
         (pkgs.python3.withPackages (python-pkgs: [
-          python-pkgs.spyder
           python-pkgs.pip
           python-pkgs.virtualenv
         ]))
