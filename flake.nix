@@ -53,6 +53,8 @@
           virtualenv --no-setuptools .venv
           source .venv/bin/activate
           pip install -r requirements-dev.txt
+          pip install .[jupyter]
+          pip install jedi-language-server
           pip install -e .
         '';
       };
