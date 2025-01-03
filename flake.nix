@@ -56,6 +56,7 @@
           pip install .[jupyter]
           pip install jedi-language-server
           pip install -e .
+          pip install --upgrade ipython prompt-toolkit
         '';
       };
     });
