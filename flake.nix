@@ -55,8 +55,10 @@
           pip install -r requirements-dev.txt
           pip install .[jupyter]
           pip install jedi-language-server
-          pip install -e .
           pip install ipython==8.12.0
+          pip install ta 
+          pip install statsmodels 
+          pip install -e .
         '';
       };
     });
