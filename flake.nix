@@ -35,6 +35,22 @@
         (pkgs.ta-lib.overrideAttrs (finalAttrs: previousAttrs: {
           prePatch = ''sed -i.bak "s|0.00000001|0.000000000000000001 |g" src/ta_func/ta_utility.h'';
         }))
+        # Matplotlib run dependency
+        pkgs.glib
+        pkgs.zlib
+        pkgs.zstd
+        pkgs.libGL
+        pkgs.fontconfig
+        pkgs.libxkbcommon
+        pkgs.freetype
+        pkgs.dbus
+        pkgs.xcb-util-cursor
+        pkgs.xorg.libX11
+        pkgs.xorg.libxcb
+        pkgs.xorg.xcbutilwm
+        pkgs.xorg.xcbutilimage
+        pkgs.xorg.xcbutilkeysyms
+        pkgs.xorg.xcbutilrenderutil
       ];
     in {
       devShells.default = pkgs.mkShell {
@@ -47,6 +63,7 @@
       };
       devShells.setupShell = pkgs.mkShell {
         inherit buildInputs;
+        #TODO: make requirements-tony.txt
         shellHook = ''
           export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
           rm -rf .venv
@@ -58,6 +75,7 @@
           pip install ipython==8.12.0
           pip install ta 
           pip install statsmodels 
+          pip install PyQt6 PyQt6-qt6==6.8.1
           pip install -e .
         '';
       };
