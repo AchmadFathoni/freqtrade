@@ -76,6 +76,7 @@
           pip install ta 
           pip install statsmodels 
           pip install PyQt6 PyQt6-qt6==6.8.1
+          pip install pandas-stubs
           pip install -e .
         '';
       };
