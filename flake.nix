@@ -14,7 +14,7 @@
 {
   description = "Freqtrade crypto trading bot";
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-24.05";
+    nixpkgs.url = "nixpkgs/nixos-24.11";
     # or for unstable
     # nixpkgs.url = "nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
@@ -70,13 +70,8 @@
           virtualenv --no-setuptools .venv
           source .venv/bin/activate
           pip install -r requirements-dev.txt
+          pip install -r requirements-tony.txt
           pip install .[jupyter]
-          pip install jedi-language-server
-          pip install ipython==8.12.0
-          pip install ta 
-          pip install statsmodels 
-          pip install PyQt6 PyQt6-qt6==6.8.1
-          pip install pandas-stubs
           pip install -e .
         '';
       };
