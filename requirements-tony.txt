@@ -2,5 +2,6 @@ jedi-language-server
 ipython==8.12.0
 ta
 statsmodels
-PyQt6 PyQt6-qt6==6.8.1
+PyQt6
+PyQt6-qt6==6.8.1
 pandas-stubs
