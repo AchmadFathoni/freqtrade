@@ -30,6 +30,7 @@
         (pkgs.python3.withPackages (python-pkgs: [
           python-pkgs.pip
           python-pkgs.virtualenv
+          python-pkgs.spyder
         ]))
         pkgs.zlib
         (pkgs.ta-lib.overrideAttrs (finalAttrs: previousAttrs: {
