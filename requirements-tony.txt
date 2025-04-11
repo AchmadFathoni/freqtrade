@@ -2,7 +2,7 @@ jedi-language-server
 ta
 statsmodels
 PyQt6
-PyQt6-qt6==6.8.1
+PyQt6-qt6
 pandas-stubs
 
 # profiler
