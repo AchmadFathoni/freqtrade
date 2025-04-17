@@ -10,3 +10,9 @@ line-profiler
 snakeviz
 line-profiler-gui
 PyQt5
+
+# spyder
+spyder-kernels==3.0.3
+
+# Essential algoritm
+numba
