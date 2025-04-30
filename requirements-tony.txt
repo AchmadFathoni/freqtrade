@@ -4,6 +4,7 @@ statsmodels
 PyQt6
 PyQt6-qt6
 pandas-stubs
+numba
 
 # profiler
 line-profiler
