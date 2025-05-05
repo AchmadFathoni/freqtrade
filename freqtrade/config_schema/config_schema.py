@@ -689,7 +689,7 @@ CONF_SCHEMA = {
         "initial_state": {
             "description": "Initial state of the system.",
             "type": "string",
-            "enum": ["running", "stopped"],
+            "enum": ["running", "paused", "stopped"],
         },
         "force_entry_enable": {
             "description": "Force enable entry.",
@@ -1146,6 +1146,14 @@ CONF_SCHEMA = {
                             "type": "boolean",
                             "default": False,
                         },
+                        "indicator_periods_candles": {
+                            "description": (
+                                "Time periods to calculate indicators for. "
+                                "The indicators are added to the base indicator dataset."
+                            ),
+                            "type": "array",
+                            "items": {"type": "number", "minimum": 1},
+                        },
                         "use_SVM_to_remove_outliers": {
                             "description": "Use SVM to remove outliers from the features.",
                             "type": "boolean",
@@ -1338,7 +1346,8 @@ SCHEMA_BACKTEST_REQUIRED = [
     "dataformat_ohlcv",
     "dataformat_trades",
 ]
-SCHEMA_BACKTEST_REQUIRED_FINAL = SCHEMA_BACKTEST_REQUIRED + [
+SCHEMA_BACKTEST_REQUIRED_FINAL = [
+    *SCHEMA_BACKTEST_REQUIRED,
     "stoploss",
     "minimal_roi",
     "max_open_trades",
@@ -1350,6 +1359,4 @@ SCHEMA_MINIMAL_REQUIRED = [
     "dataformat_ohlcv",
     "dataformat_trades",
 ]
-SCHEMA_MINIMAL_WEBSERVER = SCHEMA_MINIMAL_REQUIRED + [
-    "api_server",
-]
+SCHEMA_MINIMAL_WEBSERVER = [*SCHEMA_MINIMAL_REQUIRED, "api_server"]
