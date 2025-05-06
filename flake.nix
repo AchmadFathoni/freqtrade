@@ -44,13 +44,7 @@
         pkgs.libxkbcommon
         pkgs.freetype
         pkgs.dbus
-        pkgs.xcb-util-cursor
         pkgs.xorg.libX11
-        pkgs.xorg.libxcb
-        pkgs.xorg.xcbutilwm
-        pkgs.xorg.xcbutilimage
-        pkgs.xorg.xcbutilkeysyms
-        pkgs.xorg.xcbutilrenderutil
       ];
     in {
       devShells.default = pkgs.mkShell {

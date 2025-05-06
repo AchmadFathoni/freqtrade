@@ -1,8 +1,7 @@
 jedi-language-server
 ta
 statsmodels
-PyQt6
-PyQt6-qt6
+pyside6==6.8.3
 pandas-stubs
 numba
 
