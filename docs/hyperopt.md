@@ -1,10 +1,10 @@
 # Hyperopt
 
 This page explains how to tune your strategy by finding the optimal
-parameters, a process called hyperparameter optimization. The bot uses algorithms included in the `scikit-optimize` package to accomplish this.
+parameters, a process called hyperparameter optimization. The bot uses algorithms included in the `optuna` package to accomplish this.
 The search will burn all your CPU cores, make your laptop sound like a fighter jet and still take a long time.
 
-In general, the search for best parameters starts with a few random combinations (see [below](#reproducible-results) for more details) and then uses Bayesian search with a ML regressor algorithm (currently ExtraTreesRegressor) to quickly find a combination of parameters in the search hyperspace that minimizes the value of the [loss function](#loss-functions).
+In general, the search for best parameters starts with a few random combinations (see [below](#reproducible-results) for more details) and then uses one of optuna's sampler algorithms (currently NSGAIIISampler) to quickly find a combination of parameters in the search hyperspace that minimizes the value of the [loss function](#loss-functions).
 
 Hyperopt requires historic data to be available, just as backtesting does (hyperopt runs backtesting many times with different parameters).
 To learn how to get data for the pairs and exchange you're interested in, head over to the [Data Downloading](data-download.md) section of the documentation.
@@ -490,6 +490,8 @@ freqtrade hyperopt --config config.json --hyperopt-loss <hyperoptlossname> --str
 ```
 
 The `-e` option will set how many evaluations hyperopt will do. Since hyperopt uses Bayesian search, running too many epochs at once may not produce greater results. Experience has shown that best results are usually not improving much after 500-1000 epochs.  
+The `--early-stop` option will set after how many epochs with no improvements hyperopt will stop. A good value is 20-30% of the total epochs. Any value greater than 0 and lower than 20 it will be replaced by 20. Early stop is by default disabled (`--early-stop=0`)
+
 Doing multiple runs (executions) with a few 1000 epochs and different random state will most likely produce different results.
 
 The `--spaces all` option determines that all possible parameters should be optimized. Possibilities are listed below.
