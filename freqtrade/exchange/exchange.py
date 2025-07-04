@@ -21,6 +21,7 @@ from ccxt import TICK_SIZE
 from dateutil import parser
 from pandas import DataFrame, concat
 
+from freqtrade.configuration import remove_exchange_credentials
 from freqtrade.constants import (
     DEFAULT_AMOUNT_RESERVE_PERCENT,
     DEFAULT_TRADES_COLUMNS,
@@ -64,7 +65,6 @@ from freqtrade.exceptions import (
 )
 from freqtrade.exchange.common import (
     API_FETCH_ORDER_RETRY_COUNT,
-    remove_exchange_credentials,
     retrier,
     retrier_async,
 )
@@ -131,6 +131,7 @@ class Exchange:
         "stop_price_param": "stopLossPrice",  # Used for stoploss_on_exchange request
         "stop_price_prop": "stopLossPrice",  # Used for stoploss_on_exchange response parsing
         "stoploss_order_types": {},
+        "stoploss_blocks_assets": True,  # By default stoploss orders block assets
         "order_time_in_force": ["GTC"],
         "ohlcv_params": {},
         "ohlcv_has_history": True,  # Some exchanges (Kraken) don't provide history via ohlcv
@@ -155,6 +156,7 @@ class Exchange:
         "ccxt_futures_name": "swap",
         "needs_trading_fees": False,  # use fetch_trading_fees to cache fees
         "order_props_in_contracts": ["amount", "filled", "remaining"],
+        "fetch_orders_limit_minutes": None,  # "fetch_orders" is not time-limited by default
         # Override createMarketBuyOrderRequiresPrice where ccxt has it wrong
         "marketOrderRequiresPrice": False,
         "exchange_has_overrides": {},  # Dictionary overriding ccxt's "has".
@@ -267,11 +269,11 @@ class Exchange:
             exchange_conf.get("ccxt_async_config", {}), ccxt_async_config
         )
         self._api_async = self._init_ccxt(exchange_conf, False, ccxt_async_config)
-        self._has_watch_ohlcv = self.exchange_has("watchOHLCV") and self._ft_has["ws_enabled"]
+        _has_watch_ohlcv = self.exchange_has("watchOHLCV") and self._ft_has["ws_enabled"]
         if (
             self._config["runmode"] in TRADE_MODES
             and exchange_conf.get("enable_ws", True)
-            and self._has_watch_ohlcv
+            and _has_watch_ohlcv
         ):
             self._ws_async = self._init_ccxt(exchange_conf, False, ccxt_async_config)
             self._exchange_ws = ExchangeWS(self._config, self._ws_async)
@@ -635,9 +637,9 @@ class Exchange:
         if self._exchange_ws:
             self._exchange_ws.reset_connections()
 
-    async def _api_reload_markets(self, reload: bool = False) -> dict[str, Any]:
+    async def _api_reload_markets(self, reload: bool = False) -> None:
         try:
-            return await self._api_async.load_markets(reload=reload, params={})
+            await self._api_async.load_markets(reload=reload, params={})
         except ccxt.DDoSProtection as e:
             raise DDosProtection(e) from e
         except (ccxt.OperationFailed, ccxt.ExchangeError) as e:
@@ -647,14 +649,14 @@ class Exchange:
         except ccxt.BaseError as e:
             raise TemporaryError(e) from e
 
-    def _load_async_markets(self, reload: bool = False) -> dict[str, Any]:
+    def _load_async_markets(self, reload: bool = False) -> None:
         try:
             with self._loop_lock:
                 markets = self.loop.run_until_complete(self._api_reload_markets(reload=reload))
 
             if isinstance(markets, Exception):
                 raise markets
-            return markets
+            return None
         except asyncio.TimeoutError as e:
             logger.warning("Could not load markets. Reason: %s", e)
             raise TemporaryError from e
@@ -677,7 +679,8 @@ class Exchange:
             # on initial load, we retry 3 times to ensure we get the markets
             retries: int = 3 if force else 0
             # Reload async markets, then assign them to sync api
-            self._markets = retrier(self._load_async_markets, retries=retries)(reload=True)
+            retrier(self._load_async_markets, retries=retries)(reload=True)
+            self._markets = self._api_async.markets
             self._api.set_markets(self._api_async.markets, self._api_async.currencies)
             # Assign options array, as it contains some temporary information from the exchange.
             self._api.options = self._api_async.options
@@ -874,8 +877,8 @@ class Exchange:
             (trading_mode, margin_mode) not in self._supported_trading_mode_margin_pairs
         ):
             mm_value = margin_mode and margin_mode.value
-            raise OperationalException(
-                f"Freqtrade does not support {mm_value} {trading_mode} on {self.name}"
+            raise ConfigurationError(
+                f"Freqtrade does not support '{mm_value}' '{trading_mode}' on {self.name}."
             )
 
     def get_option(self, param: str, default: Any | None = None) -> Any:
@@ -1742,7 +1745,7 @@ class Exchange:
         return orders
 
     @retrier(retries=0)
-    def fetch_orders(
+    def _fetch_orders(
         self, pair: str, since: datetime, params: dict | None = None
     ) -> list[CcxtOrder]:
         """
@@ -1780,6 +1783,24 @@ class Exchange:
             ) from e
         except ccxt.BaseError as e:
             raise OperationalException(e) from e
+
+    def fetch_orders(
+        self, pair: str, since: datetime, params: dict | None = None
+    ) -> list[CcxtOrder]:
+        if self._config["dry_run"]:
+            return []
+        if (limit := self._ft_has.get("fetch_orders_limit_minutes")) is not None:
+            orders = []
+            while since < dt_now():
+                orders += self._fetch_orders(pair, since)
+                # Since with 1 minute overlap
+                since = since + timedelta(minutes=limit - 1)
+            # Ensure each order is unique based on order id
+            orders = list({order["id"]: order for order in orders}.values())
+            return orders
+
+        else:
+            return self._fetch_orders(pair, since, params=params)
 
     @retrier
     def fetch_trading_fees(self) -> dict[str, Any]:
@@ -2414,6 +2435,53 @@ class Exchange:
         data = sorted(data, key=lambda x: x[0])
         return pair, timeframe, candle_type, data, self._ohlcv_partial_candle
 
+    def _try_build_from_websocket(
+        self, pair: str, timeframe: str, candle_type: CandleType
+    ) -> Coroutine[Any, Any, OHLCVResponse] | None:
+        """
+        Try to build a coroutine to get data from websocket.
+        """
+        if self._can_use_websocket(self._exchange_ws, pair, timeframe, candle_type):
+            candle_ts = dt_ts(timeframe_to_prev_date(timeframe))
+            prev_candle_ts = dt_ts(date_minus_candles(timeframe, 1))
+            candles = self._exchange_ws.ohlcvs(pair, timeframe)
+            half_candle = int(candle_ts - (candle_ts - prev_candle_ts) * 0.5)
+            last_refresh_time = int(
+                self._exchange_ws.klines_last_refresh.get((pair, timeframe, candle_type), 0)
+            )
+
+            if (
+                candles
+                and (
+                    (len(candles) > 1 and candles[-1][0] >= prev_candle_ts)
+                    # Edgecase on reconnect, where 1 candle is available but it's the current one
+                    or (len(candles) == 1 and candles[-1][0] < candle_ts)
+                )
+                and last_refresh_time >= half_candle
+            ):
+                # Usable result, candle contains the previous candle.
+                # Also, we check if the last refresh time is no more than half the candle ago.
+                logger.debug(f"reuse watch result for {pair}, {timeframe}, {last_refresh_time}")
+
+                return self._exchange_ws.get_ohlcv(pair, timeframe, candle_type, candle_ts)
+            logger.info(
+                f"Couldn't reuse watch for {pair}, {timeframe}, falling back to REST api. "
+                f"{candle_ts < last_refresh_time}, {candle_ts}, {last_refresh_time}, "
+                f"{format_ms_time(candle_ts)}, {format_ms_time(last_refresh_time)} "
+            )
+        return None
+
+    def _can_use_websocket(
+        self, exchange_ws: ExchangeWS | None, pair: str, timeframe: str, candle_type: CandleType
+    ) -> TypeGuard[ExchangeWS]:
+        """
+        Check if we can use websocket for this pair.
+        Acts as typeguard for exchangeWs
+        """
+        if exchange_ws and candle_type in (CandleType.SPOT, CandleType.FUTURES):
+            return True
+        return False
+
     def _build_coroutine(
         self,
         pair: str,
@@ -2423,8 +2491,8 @@ class Exchange:
         cache: bool,
     ) -> Coroutine[Any, Any, OHLCVResponse]:
         not_all_data = cache and self.required_candle_call_count > 1
-        if cache and candle_type in (CandleType.SPOT, CandleType.FUTURES):
-            if self._has_watch_ohlcv and self._exchange_ws:
+        if cache:
+            if self._can_use_websocket(self._exchange_ws, pair, timeframe, candle_type):
                 # Subscribe to websocket
                 self._exchange_ws.schedule_ohlcv(pair, timeframe, candle_type)
 
@@ -2432,30 +2500,9 @@ class Exchange:
             candle_limit = self.ohlcv_candle_limit(timeframe, candle_type)
             min_ts = dt_ts(date_minus_candles(timeframe, candle_limit - 5))
 
-            if self._exchange_ws:
-                candle_ts = dt_ts(timeframe_to_prev_date(timeframe))
-                prev_candle_ts = dt_ts(date_minus_candles(timeframe, 1))
-                candles = self._exchange_ws.ohlcvs(pair, timeframe)
-                half_candle = int(candle_ts - (candle_ts - prev_candle_ts) * 0.5)
-                last_refresh_time = int(
-                    self._exchange_ws.klines_last_refresh.get((pair, timeframe, candle_type), 0)
-                )
-
-                if (
-                    candles
-                    and candles[-1][0] >= prev_candle_ts
-                    and last_refresh_time >= half_candle
-                ):
-                    # Usable result, candle contains the previous candle.
-                    # Also, we check if the last refresh time is no more than half the candle ago.
-                    logger.debug(f"reuse watch result for {pair}, {timeframe}, {last_refresh_time}")
-
-                    return self._exchange_ws.get_ohlcv(pair, timeframe, candle_type, candle_ts)
-                logger.info(
-                    f"Couldn't reuse watch for {pair}, {timeframe}, falling back to REST api. "
-                    f"{candle_ts < last_refresh_time}, {candle_ts}, {last_refresh_time}, "
-                    f"{format_ms_time(candle_ts)}, {format_ms_time(last_refresh_time)} "
-                )
+            if ws_resp := self._try_build_from_websocket(pair, timeframe, candle_type):
+                # We have a usable websocket response
+                return ws_resp
 
             # Check if 1 call can get us updated candles without hole in the data.
             if min_ts < self._pairs_last_refresh_time.get((pair, timeframe, candle_type), 0):
@@ -3382,7 +3429,8 @@ class Exchange:
                 raise InvalidOrderException(f"Amount {stake_amount} too high for {pair}")
 
             raise OperationalException(
-                "Looped through all tiers without finding a max leverage. Should never be reached"
+                f"Looped through all tiers without finding a max leverage for {pair}. "
+                "Should never be reached."
             )
 
         elif self.trading_mode == TradingMode.MARGIN:  # Search markets.limits for max lev

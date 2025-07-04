@@ -18,12 +18,10 @@ from freqtrade.data.btanalysis import (
     load_backtest_data,
     load_backtest_stats,
 )
-from freqtrade.edge import PairInfo
 from freqtrade.enums import ExitType
 from freqtrade.optimize.optimize_reports import (
     generate_backtest_stats,
     generate_daily_stats,
-    generate_edge_table,
     generate_pair_metrics,
     generate_periodic_breakdown_stats,
     generate_strategy_comparison,
@@ -40,7 +38,7 @@ from freqtrade.optimize.optimize_reports.optimize_reports import (
     generate_tag_metrics,
 )
 from freqtrade.resolvers.strategy_resolver import StrategyResolver
-from freqtrade.util import dt_ts
+from freqtrade.util import dt_ts, format_duration
 from freqtrade.util.datetime_helpers import dt_from_ts, dt_utc
 from tests.conftest import CURRENT_TEST_STRATEGY, log_has_re
 from tests.data.test_history import _clean_test_file
@@ -482,8 +480,8 @@ def test_generate_trading_stats(testdatadir):
     bt_data = load_backtest_data(filename)
     res = generate_trading_stats(bt_data)
     assert isinstance(res, dict)
-    assert res["winner_holding_avg"] == timedelta(seconds=1440)
-    assert res["loser_holding_avg"] == timedelta(days=1, seconds=21420)
+    assert res["winner_holding_avg"] == format_duration(timedelta(seconds=1440))
+    assert res["loser_holding_avg"] == format_duration(timedelta(days=1, seconds=21420))
     assert "wins" in res
     assert "losses" in res
     assert "draws" in res
@@ -644,15 +642,6 @@ def test_text_table_strategy(testdatadir, capsys):
         r"260.85 .* 3:40:00 .* 170     0     9  95.0 .* 0.00308222 BTC  8.67%.*",
         text,
     )
-
-
-def test_generate_edge_table(capsys):
-    results = {}
-    results["ETH/BTC"] = PairInfo(-0.01, 0.60, 2, 1, 3, 10, 60)
-    generate_edge_table(results)
-    text = capsys.readouterr().out
-    assert re.search(r".* ETH/BTC .*", text)
-    assert re.search(r".* Risk Reward Ratio .* Required Risk Reward .* Expectancy .*", text)
 
 
 def test_generate_periodic_breakdown_stats(testdatadir):

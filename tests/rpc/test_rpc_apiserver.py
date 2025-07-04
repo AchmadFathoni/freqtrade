@@ -1167,21 +1167,6 @@ def test_api_logs(botclient):
     assert len(rc1.json()["logs"]) == rc1.json()["log_count"]
 
 
-def test_api_edge_disabled(botclient, mocker, ticker, fee, markets):
-    ftbot, client = botclient
-    patch_get_signal(ftbot)
-    mocker.patch.multiple(
-        EXMS,
-        get_balances=MagicMock(return_value=ticker),
-        fetch_ticker=ticker,
-        get_fee=fee,
-        markets=PropertyMock(return_value=markets),
-    )
-    rc = client_get(client, f"{BASE_URI}/edge")
-    assert_response(rc, 502)
-    assert rc.json() == {"error": "Error querying /api/v1/edge: Edge is not enabled."}
-
-
 @pytest.mark.parametrize(
     "is_short,expected",
     [
@@ -1864,7 +1849,21 @@ def test_api_pair_candles(botclient, ohlcv_history):
     ohlcv_history["exit_short"] = 0
 
     ftbot.dataprovider._set_cached_df("XRP/BTC", timeframe, ohlcv_history, CandleType.SPOT)
+    fake_plot_annotations = [
+        {
+            "type": "area",
+            "start": "2024-01-01 15:00:00",
+            "end": "2024-01-01 16:00:00",
+            "y_start": 94000.2,
+            "y_end": 98000,
+            "color": "",
+            "label": "some label",
+        }
+    ]
+    plot_annotations_mock = MagicMock(return_value=fake_plot_annotations)
+    ftbot.strategy.plot_annotations = plot_annotations_mock
     for call in ("get", "post"):
+        plot_annotations_mock.reset_mock()
         if call == "get":
             rc = client_get(
                 client,
@@ -1894,6 +1893,8 @@ def test_api_pair_candles(botclient, ohlcv_history):
         assert resp["data_start_ts"] == 1511686200000
         assert resp["data_stop"] == "2017-11-26 09:00:00+00:00"
         assert resp["data_stop_ts"] == 1511686800000
+        assert resp["annotations"] == fake_plot_annotations
+        assert plot_annotations_mock.call_count == 1
         assert isinstance(resp["columns"], list)
         base_cols = {
             "date",
@@ -2235,6 +2236,7 @@ def test_api_pair_history(botclient, tmp_path, mocker):
         assert result["data_start_ts"] == 1515628800000
         assert result["data_stop"] == "2018-01-12 00:00:00+00:00"
         assert result["data_stop_ts"] == 1515715200000
+        assert result["annotations"] == []
         lfm.reset_mock()
 
         # No data found

@@ -46,6 +46,7 @@ class Gate(Exchange):
         "funding_fee_candle_limit": 90,
         "stop_price_type_field": "price_type",
         "l2_limit_upper": 300,
+        "stoploss_blocks_assets": False,
         "stop_price_type_value_mapping": {
             PriceType.LAST: 0,
             PriceType.MARK: 1,
@@ -69,7 +70,6 @@ class Gate(Exchange):
         """
         try:
             if not self._config["dry_run"]:
-                # TODO: This should work with 4.4.34 and later.
                 self._api.load_unified_status()
                 is_unified = self._api.options.get("unifiedAccount")
 

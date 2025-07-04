@@ -370,8 +370,18 @@ def text_table_add_metrics(strat_results: dict) -> None:
                 f"{strat_results['winning_days']} / "
                 f"{strat_results['draw_days']} / {strat_results['losing_days']}",
             ),
-            ("Avg. Duration Winners", f"{strat_results['winner_holding_avg']}"),
-            ("Avg. Duration Loser", f"{strat_results['loser_holding_avg']}"),
+            (
+                "Min/Max/Avg. Duration Winners",
+                f"{strat_results.get('winner_holding_min', 'N/A')} / "
+                f"{strat_results.get('winner_holding_max', 'N/A')} / "
+                f"{strat_results.get('winner_holding_avg', 'N/A')}",
+            ),
+            (
+                "Min/Max/Avg. Duration Losers",
+                f"{strat_results.get('loser_holding_min', 'N/A')} / "
+                f"{strat_results.get('loser_holding_max', 'N/A')} / "
+                f"{strat_results.get('loser_holding_avg', 'N/A')}",
+            ),
             (
                 "Max Consecutive Wins / Loss",
                 (
@@ -489,33 +499,3 @@ def show_sorted_pairlist(config: Config, backtest_stats: BacktestResultType):
                 if result["key"] != "TOTAL":
                     print(f'"{result["key"]}",  // {result["profit_mean"]:.2%}')
             print("]")
-
-
-def generate_edge_table(results: dict) -> None:
-    tabular_data = []
-    headers = [
-        "Pair",
-        "Stoploss",
-        "Win Rate",
-        "Risk Reward Ratio",
-        "Required Risk Reward",
-        "Expectancy",
-        "Total Number of Trades",
-        "Average Duration (min)",
-    ]
-
-    for result in results.items():
-        if result[1].nb_trades > 0:
-            tabular_data.append(
-                [
-                    result[0],
-                    f"{result[1].stoploss:.10g}",
-                    f"{result[1].winrate:.2f}",
-                    f"{result[1].risk_reward_ratio:.2f}",
-                    f"{result[1].required_risk_reward:.2f}",
-                    f"{result[1].expectancy:.2f}",
-                    result[1].nb_trades,
-                    round(result[1].avg_trade_duration),
-                ]
-            )
-    print_rich_table(tabular_data, headers, summary="EDGE TABLE")

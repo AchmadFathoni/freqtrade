@@ -2,7 +2,6 @@
 This module contains the configuration class
 """
 
-import ast
 import logging
 import warnings
 from collections.abc import Callable
@@ -310,16 +309,9 @@ class Configuration:
             ("backtest_cache", "Parameter --cache={} detected ..."),
             ("disableparamexport", "Parameter --disableparamexport detected: {} ..."),
             ("freqai_backtest_live_models", "Parameter --freqai-backtest-live-models detected ..."),
+            ("backtest_notes", "Parameter --notes detected: {} ..."),
         ]
         self._args_to_config_loop(config, configurations)
-
-        # Edge section:
-        if self.args.get("stoploss_range"):
-            txt_range = ast.literal_eval(self.args["stoploss_range"])
-            config["edge"].update({"stoploss_range_min": txt_range[0]})
-            config["edge"].update({"stoploss_range_max": txt_range[1]})
-            config["edge"].update({"stoploss_range_step": txt_range[2]})
-            logger.info("Parameter --stoplosses detected: %s ...", self.args["stoploss_range"])
 
         # Hyperopt section
 
@@ -334,6 +326,19 @@ class Configuration:
             ("print_all", "Parameter --print-all detected ..."),
         ]
         self._args_to_config_loop(config, configurations)
+        es_epochs = self.args.get("early_stop", 0)
+        if es_epochs > 0:
+            if es_epochs < 20:
+                logger.warning(
+                    f"Early stop epochs {es_epochs} lower than 20. It will be replaced with 20."
+                )
+                config.update({"early_stop": 20})
+            else:
+                config.update({"early_stop": self.args["early_stop"]})
+            logger.info(
+                f"Parameter --early-stop detected ... Will early stop hyperopt if no improvement "
+                f"after {config.get('early_stop')} epochs ..."
+            )
 
         configurations = [
             ("print_json", "Parameter --print-json detected ..."),
