@@ -1,7 +1,7 @@
 jedi-language-server
 ta
 statsmodels
-pyside6==6.8.3
+pyside6==6.9.0
 pandas-stubs
 numba
 
@@ -12,7 +12,7 @@ line-profiler-gui
 PyQt5
 
 # spyder
-spyder-kernels==3.0.3
+spyder-kernels==3.1.0a1
 
 # Essential algoritm
 numba
