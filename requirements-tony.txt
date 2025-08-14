@@ -3,7 +3,6 @@ ta
 statsmodels
 pyside6==6.9.0
 pandas-stubs
-numba
 
 # profiler
 line-profiler
