@@ -14,9 +14,8 @@
 {
   description = "Freqtrade crypto trading bot";
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-25.05";
-    # or for unstable
-    # nixpkgs.url = "nixpkgs/nixos-unstable";
+    # nixpkgs.url = "nixpkgs/nixos-25.05";
+    nixpkgs.url = "git+file:///home/toni/Documents/source/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
   };
   outputs = {
@@ -32,9 +31,6 @@
           python-pkgs.virtualenv
         ]))
         pkgs.zlib
-        (pkgs.ta-lib.overrideAttrs (finalAttrs: previousAttrs: {
-          prePatch = ''sed -i.bak "s|0.00000001|0.000000000000000001 |g" src/ta_func/ta_utility.h'';
-        }))
         # Matplotlib run dependency
         pkgs.glib
         pkgs.zlib
