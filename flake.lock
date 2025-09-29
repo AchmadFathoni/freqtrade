@@ -20,11 +20,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1756346860,
-        "narHash": "sha256-ZxvHpN+tVtcrr+Oy6TRJqjNEdahY6/ou3HBrIo9/LDM=",
+        "lastModified": 1759030624,
+        "narHash": "sha256-C/wix+1PLZKzJMCFMvA3UKQ7twCNByFKeHP0H2ehEDs=",
         "ref": "refs/heads/nixos-25.05",
-        "rev": "4d9b8a19c28299848d5e79926040c829de044304",
-        "revCount": 808901,
+        "rev": "58e1d54036abd0a83b10e00c14038f1382eef4ef",
+        "revCount": 810444,
         "type": "git",
         "url": "file:///home/toni/Documents/source/nixpkgs"
       },
