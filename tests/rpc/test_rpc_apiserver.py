@@ -1034,8 +1034,7 @@ def test_api_delete_trade(botclient, mocker, fee, markets, is_short):
     stoploss_mock = MagicMock()
     cancel_mock = MagicMock()
     mocker.patch.multiple(
-        EXMS,
-        markets=PropertyMock(return_value=markets),
+        ftbot.exchange,
         cancel_order=cancel_mock,
         cancel_stoploss_order=stoploss_mock,
     )
@@ -1605,6 +1604,8 @@ def test_api_status(
         "precision_mode": None,
         "orders": [ANY],
         "has_open_orders": True,
+        "nr_of_successful_entries": ANY,
+        "nr_of_successful_exits": ANY,
     }
 
     mocker.patch(
@@ -1817,6 +1818,8 @@ def test_api_force_entry(botclient, mocker, fee, endpoint):
         "price_precision": None,
         "precision_mode": None,
         "has_open_orders": False,
+        "nr_of_successful_entries": ANY,
+        "nr_of_successful_exits": ANY,
         "orders": [],
     }
 
