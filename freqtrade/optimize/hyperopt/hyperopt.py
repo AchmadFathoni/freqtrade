@@ -15,6 +15,8 @@ from typing import Any
 import rapidjson
 from joblib import Parallel, cpu_count
 from optuna.trial import FrozenTrial, Trial, TrialState
+from optuna import storages
+from optuna_dashboard import run_server
 
 from freqtrade.constants import FTHYPT_FILEVERSION, LAST_BT_RESULT_FN, Config
 from freqtrade.enums import HyperoptState
@@ -227,7 +229,8 @@ class Hyperopt:
         config_jobs = self.config.get("hyperopt_jobs", -1)
         logger.info(f"Number of parallel jobs set as: {config_jobs}")
 
-        self.opt = self.hyperopter.get_optimizer(self.random_state)
+        storage = storages.InMemoryStorage()
+        self.opt = self.hyperopter.get_optimizer(self.random_state, storage)
         try:
             with Parallel(n_jobs=config_jobs) as parallel:
                 jobs = parallel._effective_n_jobs()
@@ -311,6 +314,7 @@ class Hyperopt:
             HyperoptTools.show_epoch_details(
                 self.current_best_epoch, self.total_epochs, self.print_json
             )
+            run_server(storage)
         elif self.num_epochs_saved > 0:
             print(
                 f"No good result found for given optimization function in {self.num_epochs_saved} "
