@@ -15,7 +15,7 @@ This software is for educational purposes only. Do not risk money which
 you are afraid to lose. USE THE SOFTWARE AT YOUR OWN RISK. THE AUTHORS
 AND ALL AFFILIATES ASSUME NO RESPONSIBILITY FOR YOUR TRADING RESULTS.
 
-Always start by running a trading bot in Dry-run and do not engage money
+Always start by running a trading bot in Dry-Run and do not engage money
 before you understand how it works and what profit/loss you should
 expect.
 
@@ -24,7 +24,9 @@ hesitate to read the source code and understand the mechanism of this bot.
 
 ## Supported Exchange marketplaces
 
-Please read the [exchange specific notes](docs/exchanges.md) to learn about eventual, special configurations needed for each exchange.
+Please read the [exchange-specific notes](docs/exchanges.md) to learn about special configurations that maybe needed for each exchange.
+
+### Supported Spot Exchanges
 
 - [X] [Binance](https://www.binance.com/)
 - [X] [BingX](https://bingx.com/invite/0EM9RX)
@@ -39,7 +41,7 @@ Please read the [exchange specific notes](docs/exchanges.md) to learn about even
 - [X] [MyOKX](https://okx.com/) (OKX EEA)
 - [ ] [potentially many others](https://github.com/ccxt/ccxt/). _(We cannot guarantee they will work)_
 
-### Supported Futures Exchanges (experimental)
+### Supported Futures Exchanges
 
 - [X] [Binance](https://www.binance.com/)
 - [X] [Bitget](https://www.bitget.com/)

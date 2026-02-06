@@ -74,9 +74,10 @@ def combined_dataframes_with_rel_mean(
     df_comb = combine_dataframes_by_column(data, column)
     # Trim dataframes to the given timeframe
     df_comb = df_comb.iloc[(df_comb.index >= fromdt) & (df_comb.index < todt)]
+    rel_mean = df_comb.pct_change().mean(axis=1).fillna(0).cumsum()
     df_comb["count"] = df_comb.count(axis=1)
     df_comb["mean"] = df_comb.mean(axis=1)
-    df_comb["rel_mean"] = df_comb["mean"].pct_change().fillna(0).cumsum()
+    df_comb["rel_mean"] = rel_mean
     return df_comb[["mean", "rel_mean", "count"]]
 
 
@@ -333,7 +334,10 @@ def calculate_expectancy(trades: pd.DataFrame) -> tuple[float, float]:
 
 
 def calculate_sortino(
-    trades: pd.DataFrame, min_date: datetime, max_date: datetime, starting_balance: float
+    trades: pd.DataFrame,
+    min_date: datetime | None,
+    max_date: datetime | None,
+    starting_balance: float,
 ) -> float:
     """
     Calculate sortino
@@ -361,7 +365,10 @@ def calculate_sortino(
 
 
 def calculate_sharpe(
-    trades: pd.DataFrame, min_date: datetime, max_date: datetime, starting_balance: float
+    trades: pd.DataFrame,
+    min_date: datetime | None,
+    max_date: datetime | None,
+    starting_balance: float,
 ) -> float:
     """
     Calculate sharpe
@@ -388,7 +395,10 @@ def calculate_sharpe(
 
 
 def calculate_calmar(
-    trades: pd.DataFrame, min_date: datetime, max_date: datetime, starting_balance: float
+    trades: pd.DataFrame,
+    min_date: datetime | None,
+    max_date: datetime | None,
+    starting_balance: float,
 ) -> float:
     """
     Calculate calmar

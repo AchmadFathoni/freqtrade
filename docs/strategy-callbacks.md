@@ -634,7 +634,7 @@ class AwesomeStrategy(IStrategy):
 
 ## Custom order price rules
 
-By default, freqtrade use the orderbook to automatically set an order price([Relevant documentation](configuration.md#prices-used-for-orders)), you also have the option to create custom order prices based on your strategy.
+By default, freqtrade use the orderbook to automatically set an order price ([Relevant documentation](configuration.md#prices-used-for-orders)), you also have the option to create custom order prices based on your strategy.
 
 You can use this feature by creating a `custom_entry_price()` function in your strategy file to customize entry prices and `custom_exit_price()` for exits.
 
@@ -644,7 +644,7 @@ Each of these methods are called right before placing an order on the exchange.
     If your custom pricing function return None or an invalid value, price will fall back to `proposed_rate`, which is based on the regular pricing configuration.
 
 !!! Note
-    Using custom_entry_price, the Trade object will be available as soon as the first entry order associated with the trade is created, for the first entry, `trade` parameter value will be `None`.
+    When using `custom_entry_price()`, the Trade object will be available as soon as the first entry order associated with the trade is created, for the first entry, `trade` parameter value will be `None`.
 
 ### Custom order entry and exit price example
 
@@ -1288,6 +1288,22 @@ Currently two types of annotations are supported, `area` and `line`.
     "label": "some label",
     "width": 2, // Optional, line width in pixels. Defaults to 1
     "line_style": "dashed", // Optional, can be "solid", "dashed" or "dotted". Defaults to "solid"
+
+}
+```
+
+#### Point
+
+``` json
+{
+    "type": "point", // Type of the annotation, currently only "point" is supported
+    "x": "2024-01-01 15:00:00", // Start date of the point
+    "y": 94000.2,  // Price / y axis value
+    "color": "",
+    "z_level": 5, // z-level, higher values are drawn on top of lower values. Positions relative to the Chart elements need to be set in freqUI.
+    "label": "some label",
+    "size": 2, // Optional, line width in pixels. Defaults to 10
+    "symbol": "circle", // Optional, can be "circle", "rect", "roundRect", "triangle", "pin", "arrow", "none".
 
 }
 ```

@@ -17,7 +17,7 @@ from freqtrade.exchange.binance_public_data import (
     download_archive_trades,
 )
 from freqtrade.exchange.common import retrier
-from freqtrade.exchange.exchange_types import CcxtOrder, FtHas, Tickers
+from freqtrade.exchange.exchange_types import FtHas, Tickers
 from freqtrade.exchange.exchange_utils_timeframe import timeframe_to_msecs
 from freqtrade.misc import deep_merge_dicts, json_load
 from freqtrade.util import FtTTLCache
@@ -51,6 +51,8 @@ class Binance(Exchange):
         "funding_fee_candle_limit": 1000,
         "stoploss_order_types": {"limit": "stop", "market": "stop_market"},
         "stoploss_blocks_assets": False,  # Stoploss orders do not block assets
+        "stoploss_query_requires_stop_flag": True,
+        "stoploss_algo_order_info_id": "actualOrderId",
         "tickers_have_price": False,
         "floor_leverage": True,
         "fetch_orders_limit_minutes": 7 * 1440,  # "fetch_orders" is limited to 7 days
@@ -66,6 +68,7 @@ class Binance(Exchange):
             "BFUSD": "USDT",
         },
     }
+    _can_use_data_download_fast = True
 
     _supported_trading_mode_margin_pairs: list[tuple[TradingMode, MarginMode]] = [
         (TradingMode.SPOT, MarginMode.NONE),
@@ -145,34 +148,6 @@ class Binance(Exchange):
         except ccxt.BaseError as e:
             raise OperationalException(e) from e
 
-    def fetch_stoploss_order(
-        self, order_id: str, pair: str, params: dict | None = None
-    ) -> CcxtOrder:
-        if self.trading_mode == TradingMode.FUTURES:
-            params = params or {}
-            params.update({"stop": True})
-        order = self.fetch_order(order_id, pair, params)
-        if self.trading_mode == TradingMode.FUTURES and order.get("status", "open") == "closed":
-            # Places a real order - which we need to fetch explicitly.
-
-            if new_orderid := order.get("info", {}).get("actualOrderId"):
-                order1 = self.fetch_order(order_id=new_orderid, pair=pair, params={})
-                order1["id_stop"] = order1["id"]
-                order1["id"] = order_id
-                order1["type"] = "stoploss"
-                order1["stopPrice"] = order.get("stopPrice")
-                order1["status_stop"] = "triggered"
-
-                return order1
-
-        return order
-
-    def cancel_stoploss_order(self, order_id: str, pair: str, params: dict | None = None) -> dict:
-        if self.trading_mode == TradingMode.FUTURES:
-            params = params or {}
-            params.update({"stop": True})
-        return self.cancel_order(order_id=order_id, pair=pair, params=params)
-
     def get_historic_ohlcv(
         self,
         pair: str,
@@ -207,7 +182,8 @@ class Binance(Exchange):
                     return DataFrame(columns=DEFAULT_DATAFRAME_COLUMNS)
 
         if (
-            self._config["exchange"].get("only_from_ccxt", False)
+            not self._can_use_data_download_fast
+            or self._config["exchange"].get("only_from_ccxt", False)
             or
             # only download timeframes with significant improvements,
             # otherwise fall back to rest API
@@ -431,7 +407,10 @@ class Binance(Exchange):
     ) -> tuple[str, list[list]]:
         logger.info(f"Fetching trades for {pair} from Binance, {from_id=}, {since=}, {until=}")
 
-        if not self._config["exchange"].get("only_from_ccxt", False):
+        if (
+            not self._config["exchange"].get("only_from_ccxt", False)
+            and self._can_use_data_download_fast
+        ):
             if from_id is None or not since:
                 trades = await self._api_async.fetch_trades(
                     pair,
@@ -572,3 +551,28 @@ class Binance(Exchange):
                 cache[ft_symbol] = delist_dt
 
         return cache.get(pair, None)
+
+
+class Binanceusdm(Binance):
+    """Binacne USDM Exchange
+    Same as Binance - only futures trading is supported (via ccxt).
+
+    Not actually necessary, binance should be preferred.
+    """
+
+    _supported_trading_mode_margin_pairs: list[tuple[TradingMode, MarginMode]] = [
+        (TradingMode.FUTURES, MarginMode.CROSS),
+        (TradingMode.FUTURES, MarginMode.ISOLATED),
+    ]
+
+
+class Binanceus(Binance):
+    """Binance US exchange class.
+    Minimal adjustment to disable futures trading for the US subsidiary of Binance
+    """
+
+    _supported_trading_mode_margin_pairs: list[tuple[TradingMode, MarginMode]] = [
+        (TradingMode.SPOT, MarginMode.NONE),
+    ]
+    # binance vision does not have data for binanceus
+    _can_use_data_download_fast = False
