@@ -8,10 +8,9 @@ pandas-stubs
 line-profiler
 snakeviz
 line-profiler-gui
-PyQt5
 
 # spyder
-spyder-kernels==3.1.0a1
+spyder-kernels==3.1
 
 # Essential algoritm
 numba
