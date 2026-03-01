@@ -16,7 +16,6 @@ from joblib import delayed, dump, load, wrap_non_picklable_objects
 from joblib.externals import cloudpickle
 from optuna.exceptions import ExperimentalWarning
 from optuna.terminator import BestValueStagnationEvaluator, Terminator
-from optuna import storages
 from pandas import DataFrame
 
 from freqtrade.constants import DATETIME_PRINT_FORMAT, Config
@@ -407,7 +406,6 @@ class HyperOptimizer:
     def get_optimizer(
         self,
         random_state: int,
-        storage: storages.BaseStorage | None = None
     ):
         o_sampler = self.custom_hyperopt.generate_estimator(
             dimensions=self.dimensions, random_state=random_state
@@ -437,7 +435,7 @@ class HyperOptimizer:
                 self.es_terminator = Terminator(BestValueStagnationEvaluator(self.es_epochs))
 
         logger.info(f"Using optuna sampler {o_sampler}.")
-        return optuna.create_study(sampler=sampler, direction="minimize", storage=storage)
+        return optuna.create_study(sampler=sampler, direction="minimize")
 
     def advise_and_trim(self, data: dict[str, DataFrame]) -> dict[str, DataFrame]:
         preprocessed = self.backtesting.strategy.advise_all_indicators(data)
