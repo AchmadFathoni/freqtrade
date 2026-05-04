@@ -10,3 +10,6 @@ line-profiler-gui
 
 # spyder
 spyder-kernels==3.1
+
+# Optimizer
+optunahub
