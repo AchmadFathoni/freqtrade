@@ -9,7 +9,7 @@ snakeviz
 line-profiler-gui
 
 # spyder
-spyder-kernels==3.1
+spyder-kernels
 
 # Optimizer
 optunahub
