@@ -38,7 +38,7 @@
           '';
         };
 
-        setupSHell = pkgs.mkShell {
+        setupShell = pkgs.mkShell {
           inherit buildInputs;
           #TODO: make requirements-tony.txt
           shellHook = ''
