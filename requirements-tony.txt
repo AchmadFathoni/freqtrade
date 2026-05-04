@@ -1,6 +1,6 @@
 ta
 statsmodels
-pyside6==6.10.1
+pyside6==6.10.2
 pandas-stubs
 
 # profiler
