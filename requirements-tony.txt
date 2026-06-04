@@ -1,7 +1,10 @@
 ta
 statsmodels
 pyside6==6.10.2
+
+# typing
 pandas-stubs
+matplotlib-stubs
 
 # profiler
 line-profiler
