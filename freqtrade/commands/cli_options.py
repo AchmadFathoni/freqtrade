@@ -376,6 +376,12 @@ AVAILABLE_CLI_OPTIONS = {
         "Example: `--hyperopt-filename=hyperopt_results_2020-09-27_16-20-48.pickle`",
         metavar="FILENAME",
     ),
+    "optuna_dashboard": Arg(
+        "--optuna-dashboard",
+        help="Launch optuna dashboard at http://0.0.0.0:8009 for live hyperopt visualization.",
+        action="store_true",
+        default=False,
+    ),
     # List exchanges
     "print_one_column": Arg(
         "-1",

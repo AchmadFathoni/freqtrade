@@ -7,9 +7,12 @@ This module contains the hyperopt logic
 import gc
 import logging
 import random
+import threading
+import webbrowser
 from datetime import datetime
 from math import ceil
 from pathlib import Path
+from time import sleep
 from typing import Any
 
 import rapidjson
@@ -216,6 +219,40 @@ class Hyperopt:
 
         self._save_result(val)
 
+    def _start_optuna_dashboard(self) -> None:
+        if not self.config.get("optuna_dashboard", False):
+            return
+        try:
+            from wsgiref.simple_server import WSGIRequestHandler
+
+            WSGIRequestHandler.log_message = lambda self, fmt, *args: None
+
+            from optuna_dashboard import run_server
+
+            t = threading.Thread(
+                target=run_server,
+                kwargs={
+                    "storage": self.opt._storage,
+                    "host": "0.0.0.0",  # noqa: S104
+                    "port": 8009,
+                },
+                daemon=True,
+            )
+            t.start()
+            webbrowser.open("http://127.0.0.1:8009")
+            logger.info("Optuna dashboard opened at http://127.0.0.1:8009")
+        except ImportError:
+            logger.warning("optuna-dashboard not installed. Run: pip install optuna-dashboard")
+
+    @staticmethod
+    def _wait_for_dashboard() -> None:
+        print("\nOptuna dashboard running at http://127.0.0.1:8009 — press Ctrl+C to stop")
+        try:
+            while True:
+                sleep(1)
+        except KeyboardInterrupt:
+            pass
+
     def start(self) -> None:
         self.random_state = self._set_random_state(self.config.get("hyperopt_random_state"))
         logger.info(f"Using optimizer random state: {self.random_state}")
@@ -228,6 +265,8 @@ class Hyperopt:
         logger.info(f"Number of parallel jobs set as: {config_jobs}")
 
         self.opt = self.hyperopter.get_optimizer(self.random_state)
+        self._start_optuna_dashboard()
+
         try:
             with Parallel(n_jobs=config_jobs) as parallel:
                 jobs = parallel._effective_n_jobs()
@@ -320,3 +359,6 @@ class Hyperopt:
             # This is printed when Ctrl+C is pressed quickly, before first epochs have
             # a chance to be evaluated.
             print("No epochs evaluated yet, no best result.")
+
+        if self.config.get("optuna_dashboard", False):
+            self._wait_for_dashboard()

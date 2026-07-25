@@ -271,6 +271,12 @@ class Configuration:
             logstring="Parameter --enable-dynamic-pairlist detected, enabling dynamic pairlist ...",
         )
 
+        self._args_to_config(
+            config,
+            argname="optuna_dashboard",
+            logstring="Parameter --optuna-dashboard detected ...",
+        )
+
         if self.args.get("max_open_trades"):
             config.update({"max_open_trades": self.args["max_open_trades"]})
             logger.info(

@@ -16,13 +16,10 @@ class ft_CategoricalDistribution(CategoricalDistribution):
         **kwargs,
     ):
         self.name = name
-        self.categories = categories
-        # if len(categories) <= 1:
-        #     raise Exception(f"need at least 2 categories for {name}")
         return super().__init__(categories)
 
     def __repr__(self):
-        return f"CategoricalDistribution({self.categories})"
+        return f"CategoricalDistribution({self.choices})"
 
 
 class ft_IntDistribution(IntDistribution):
