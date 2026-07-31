@@ -220,29 +220,37 @@ class Hyperopt:
         self._save_result(val)
 
     def _start_optuna_dashboard(self) -> None:
+        self._dashboard_running = False
         if not self.config.get("optuna_dashboard", False):
             return
         try:
             from wsgiref.simple_server import WSGIRequestHandler
 
-            WSGIRequestHandler.log_message = lambda self, fmt, *args: None
+            WSGIRequestHandler.log_message = lambda self, fmt, *args: None  # type: ignore[method-assign]
 
             from optuna_dashboard import run_server
-
-            t = threading.Thread(
-                target=run_server,
-                kwargs={
-                    "storage": self.opt._storage,
-                    "host": "0.0.0.0",  # noqa: S104
-                    "port": 8009,
-                },
-                daemon=True,
-            )
-            t.start()
-            webbrowser.open("http://127.0.0.1:8009")
-            logger.info("Optuna dashboard opened at http://127.0.0.1:8009")
         except ImportError:
             logger.warning("optuna-dashboard not installed. Run: pip install optuna-dashboard")
+            return
+
+        failed = threading.Event()
+
+        def _run_dashboard() -> None:
+            try:
+                run_server(storage=self.opt._storage, host="0.0.0.0", port=8009)  # noqa: S104
+            except Exception:
+                logger.exception("optuna dashboard failed to start")
+                failed.set()
+
+        threading.Thread(target=_run_dashboard, daemon=True).start()
+        for _ in range(30):
+            if failed.is_set():
+                logger.error("optuna dashboard failed to start (port 8009 in use?)")
+                return
+            sleep(0.1)
+        self._dashboard_running = True
+        webbrowser.open("http://127.0.0.1:8009")
+        logger.info("Optuna dashboard opened at http://127.0.0.1:8009")
 
     @staticmethod
     def _wait_for_dashboard() -> None:
@@ -360,5 +368,5 @@ class Hyperopt:
             # a chance to be evaluated.
             print("No epochs evaluated yet, no best result.")
 
-        if self.config.get("optuna_dashboard", False):
+        if self.config.get("optuna_dashboard", False) and self._dashboard_running:
             self._wait_for_dashboard()

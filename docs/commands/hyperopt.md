@@ -16,6 +16,7 @@ usage: freqtrade hyperopt [-h] [-v] [--no-color] [--logfile FILE] [-V]
                           [--min-trades INT] [--hyperopt-loss NAME]
                           [--disable-param-export] [--ignore-missing-spaces]
                           [--analyze-per-epoch] [--early-stop INT]
+                          [--optuna-dashboard]
 
 options:
   -h, --help            show this help message and exit
@@ -95,6 +96,8 @@ options:
   --analyze-per-epoch   Run populate_indicators once per epoch.
   --early-stop INT      Early stop hyperopt if no improvement after (default:
                         0) epochs.
+  --optuna-dashboard    Launch optuna dashboard at http://0.0.0.0:8009 for
+                        live hyperopt visualization.
 
 Common arguments:
   -v, --verbose         Verbose mode (-vv for more, -vvv to get all messages).

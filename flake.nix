@@ -27,6 +27,7 @@
         pkgs.freetype
         pkgs.dbus
         pkgs.libX11
+        pkgs.ruff
       ];
     in {
       devShells.${system} = {
