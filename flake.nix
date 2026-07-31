@@ -26,7 +26,7 @@
         pkgs.libxkbcommon
         pkgs.freetype
         pkgs.dbus
-        pkgs.xorg.libX11
+        pkgs.libX11
       ];
     in {
       devShells.${system} = {
