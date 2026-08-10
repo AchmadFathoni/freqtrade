@@ -42,6 +42,7 @@ BOOK_UUID = uuid.uuid5(uuid.NAMESPACE_URL, "https://www.freqtrade.io/epub/docs")
 
 BASE_CSS = """
 body { margin: 1em; font-family: Georgia, 'Times New Roman', serif; line-height: 1.5; }
+p { text-align: justify; }
 h1, h2, h3, h4 { font-family: sans-serif; line-height: 1.25; }
 h1 { border-bottom: 1px solid #ccc; padding-bottom: .2em; }
 a { color: #0366d6; text-decoration: none; }
@@ -211,8 +212,13 @@ def render_chapter(
         raise RuntimeError(f"No article content found in {f.dest_path}")
     page_url = f.url.rstrip("/")
     clean_article(art, page_url, site_dir, page_map, images)
+    headings = [
+        (h.get("id"), h.get_text(" ", strip=True))
+        for h in art.find_all(["h2", "h3"])
+        if h.get("id")
+    ]
     content = "".join(str(c) for c in art.contents)
-    return XHTML_TEMPLATE.format(title=title, content=content).encode("utf-8")
+    return XHTML_TEMPLATE.format(title=title, content=content).encode("utf-8"), headings
 
 
 def _first_page(value) -> str | None:
@@ -227,23 +233,29 @@ def _first_page(value) -> str | None:
     return None
 
 
-def _nav_items(nav) -> str:
+def _nav_items(nav, headings: dict[str, list[tuple[str, str]]]) -> str:
     lis = []
     for entry in nav:
         if isinstance(entry, dict):
             for title, value in entry.items():
                 if isinstance(value, str):
-                    lis.append(f'<li><a href="{chapter_name(value)}">{title}</a></li>')
+                    name = chapter_name(value)
+                    items = "".join(
+                        f'<li><a href="{name}#{hid}">{escape(htext)}</a></li>'
+                        for hid, htext in headings.get(name, [])
+                    )
+                    sub = f"<ol>{items}</ol>" if items else ""
+                    lis.append(f'<li><a href="{name}">{title}</a>{sub}</li>')
                 elif isinstance(value, list):
                     first = _first_page(value)
                     href = f'<a href="{first}">{title}</a>' if first else f"<span>{title}</span>"
-                    lis.append(f"<li>{href}<ol>{_nav_items(value)}</ol></li>")
+                    lis.append(f"<li>{href}<ol>{_nav_items(value, headings)}</ol></li>")
         elif isinstance(entry, str):
             lis.append(f"<li><span>{entry}</span></li>")
     return "".join(lis)
 
 
-def build_nav_xhtml(nav) -> bytes:
+def build_nav_xhtml(nav, headings: dict[str, list[tuple[str, str]]]) -> bytes:
     nav_html = f"""<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en">
@@ -254,7 +266,7 @@ def build_nav_xhtml(nav) -> bytes:
 <body>
 <nav epub:type="toc">
 <h1>Contents</h1>
-<ol>{_nav_items(nav)}</ol>
+<ol>{_nav_items(nav, headings)}</ol>
 </nav>
 </body>
 </html>
@@ -550,14 +562,13 @@ def build_epub(
 
         images: dict = {}
         rendered = []
+        headings: dict[str, list[tuple[str, str]]] = {}
         for title, md in pages:
-            rendered.append(
-                (
-                    title,
-                    chapter_name(md),
-                    render_chapter(title, md, site_dir, docs_dir, use_dir, page_map, images),
-                )
+            data, page_headings = render_chapter(
+                title, md, site_dir, docs_dir, use_dir, page_map, images
             )
+            headings[chapter_name(md)] = page_headings
+            rendered.append((title, chapter_name(md), data))
 
         # merge with previous build: reuse old filename when content hash matches
         old_chapters = {}
@@ -607,7 +618,7 @@ def build_epub(
                 "OEBPS/content.opf",
                 build_opf([(t, n) for t, n, _ in final], sorted(image_files), meta),
             ),
-            ("OEBPS/nav.xhtml", build_nav_xhtml(cfg["nav"])),
+            ("OEBPS/nav.xhtml", build_nav_xhtml(cfg["nav"], headings)),
             (
                 "OEBPS/css/style.css",
                 (BASE_CSS + HtmlFormatter().get_style_defs(".highlight, .codehilite")).encode(

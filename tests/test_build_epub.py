@@ -20,7 +20,9 @@ def project(tmp_path: Path) -> tuple[Path, Path]:
         "[Star](https://github.com/x/y){ .md-button .md-button--sm }\n\n"
         "![badge](https://img.shields.io/badge/x-y)\n"
     )
-    (docs / "intro.md").write_text("# Intro\n\nFirst paragraph.\n\n![pic](images/pic.png)\n")
+    (docs / "intro.md").write_text(
+        "# Intro\n\n## Heading\n\nFirst paragraph.\n\n![pic](images/pic.png)\n"
+    )
     (docs / "images" / "pic.png").write_bytes(b"png")
     (tmp_path / "mkdocs.yml").write_text(
         "site_name: Test\nsite_description: Test\n"
@@ -45,6 +47,7 @@ def test_section_labels_link_to_first_child(project: tuple[Path, Path]):
     cfg, out = project
     build_epub(cfg, out)
     assert '<a href="intro.xhtml">Section</a>' in nav_xhtml(out)
+    assert '<a href="intro.xhtml#heading">Heading</a>' in nav_xhtml(out)
 
 
 def test_web_chrome_removed(project: tuple[Path, Path]):
