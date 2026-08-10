@@ -16,3 +16,6 @@ spyder-kernels
 
 # Optimizer
 optunahub
+
+# build_helpers/build_epub.py
+beautifulsoup4==4.14.3

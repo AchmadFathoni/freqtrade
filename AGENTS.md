@@ -41,6 +41,20 @@ Docs are prose and can be stale. When a doc says something concrete, confirm in 
 - Use mkdocs-material admonitions (`!!! note "..."`); images go in `docs/images/`; generated command docs are excluded from the site build (`exclude_docs` in `mkdocs.yml`).
 - CI checks: `tests/test_docs.sh` (markup sanity), `mkdocs build`, codespell. Run `pre-commit run -a`.
 
+## EPUB build (`build_helpers/build_epub.py`)
+
+Converts the mkdocs docs to an EPUB (default `~/Documents/freqtrade-docs.epub`):
+
+```bash
+python build_helpers/build_epub.py            # build + update Calibre library
+python build_helpers/build_epub.py --no-calibre   # file-only build
+```
+
+- Zero-arg run also updates the "Freqtrade" book in the Calibre library (path read from `~/.config/calibre/global.py.json`): replaces the format and refreshes metadata from the epub OPF. If the `calibre-server` systemd service is active it is stopped first and restarted after (`sudo`, prompts for password). Halts with a warning if the Calibre GUI or ebook viewer is open (they lock the library).
+- **Highlight preservation**: Calibre stores annotations keyed to (book, internal file, CFI). The build is deterministic (fixed zip timestamps/order, constant book UUID); chapters whose rendered XHTML is byte-identical keep their old filename (content-hash match, covers renamed pages) so highlights/notes survive. Changed chapters orphan their old highlights; removed pages drop their file. Verify with `tests/test_build_epub.py`.
+- Metadata: title/description/language from `mkdocs.yml`; creator/publisher/rights/tags via flags; published date = latest release (git tag, else newest `bump version to X.Y` commit, else docs commit).
+- Dependencies: `beautifulsoup4` (in `requirements-tony.txt`), mkdocs-material (theme markup), pygments. Known limits: MathJax stays as raw LaTeX; a changed-and-renamed page breaks cross-links from unchanged pages.
+
 ## Quick reference for hands-on runs
 
 - `user_data/` is the live userdir (gitignored): `data/binance/futures/*.feather` candles, empty `strategies/`, `backtest_results/`, `hyperopt_results/`, `logs/`. DBs `tradesv3.sqlite` (live) / `tradesv3.dryrun.sqlite` (dry-run).
