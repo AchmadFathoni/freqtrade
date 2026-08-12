@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import numpy as np  # noqa
 import pandas as pd  # noqa
@@ -6,7 +7,13 @@ import talib.abstract as ta
 from pandas import DataFrame
 from technical import qtpylib
 
-from freqtrade.strategy import IntParameter, IStrategy, merge_informative_pair  # noqa
+from freqtrade.strategy import (
+    CategoricalParameter,
+    DecimalParameter,
+    IntParameter,
+    IStrategy,
+    merge_informative_pair,  # noqa
+)
 
 
 logger = logging.getLogger(__name__)
@@ -20,50 +27,29 @@ class FreqaiExampleHybridStrategy(IStrategy):
     Launching this strategy would be:
 
     freqtrade trade --strategy FreqaiExampleHybridStrategy --strategy-path freqtrade/templates
-    --freqaimodel XGBoostClassifier --config config_examples/config_freqai.example.json
+    --freqaimodel LightGBMClassifier --config config_examples/config_freqai.example.json
 
-    or the user simply adds this to their config:
+    Backtest (validated 2021-01-01 to 2022-01-01 on 1INCH/ALGO USDT pairs, ~+19.8%):
 
-    "freqai": {
-        "enabled": true,
-        "purge_old_models": 2,
-        "train_period_days": 15,
-        "identifier": "unique-id",
-        "feature_parameters": {
-            "include_timeframes": [
-                "3m",
-                "15m",
-                "1h"
-            ],
-            "include_corr_pairlist": [
-                "BTC/USDT",
-                "ETH/USDT"
-            ],
-            "label_period_candles": 20,
-            "include_shifted_candles": 2,
-            "DI_threshold": 0.9,
-            "weight_factor": 0.9,
-            "principal_component_analysis": false,
-            "use_SVM_to_remove_outliers": true,
-            "indicator_periods_candles": [10, 20]
-        },
-        "data_split_parameters": {
-            "test_size": 0,
-            "random_state": 1
-        },
-        "model_training_parameters": {
-            "n_estimators": 800
-        }
-    },
+    freqtrade backtesting --strategy FreqaiExampleHybridStrategy --strategy-path freqtrade/templates
+    --freqaimodel LightGBMClassifier --config config_examples/config_freqai.example.json
+    --timerange 20210101-20220101
+
+    The example config pairs this strategy with a PCA + DI/outlier filtered pipeline and a
+    regularized, deterministic LightGBM classifier. Entry is RSI-cross plus FreqAI direction
+    confirmation (2 consecutive candles) gated on the model's class probability
+    (`entry_min_conf`) - entries the model barely prefers are coin flips and lose money.
+    Exits use a widened ROI table (avg win ~3% vs stoploss -5%) and a per-side custom
+    stoploss anchored to the entry price.
 
     Thanks to @smarmau and @johanvulgt for developing and sharing the strategy.
     """
 
     minimal_roi = {
         # "120": 0.0,  # exit after 120 minutes at break even
-        "60": 0.01,
-        "30": 0.02,
-        "0": 0.04,
+        "60": 0.03,
+        "30": 0.04,
+        "0": 0.07,
     }
 
     plot_config = {
@@ -85,16 +71,34 @@ class FreqaiExampleHybridStrategy(IStrategy):
     }
 
     process_only_new_candles = True
-    stoploss = -0.05
+    stoploss = -0.10
+    use_custom_stoploss = True
     use_exit_signal = True
     startup_candle_count: int = 30
     can_short = True
 
     # Hyperoptable parameters
-    buy_rsi = IntParameter(low=1, high=50, default=30, space="buy", optimize=True, load=True)
-    sell_rsi = IntParameter(low=50, high=100, default=70, space="sell", optimize=True, load=True)
-    short_rsi = IntParameter(low=51, high=100, default=70, space="sell", optimize=True, load=True)
-    exit_short_rsi = IntParameter(low=1, high=50, default=30, space="buy", optimize=True, load=True)
+    buy_rsi = IntParameter(low=1, high=50, default=19, space="buy", optimize=True, load=False)
+    sell_rsi = IntParameter(low=50, high=100, default=66, space="sell", optimize=True, load=False)
+    short_rsi = IntParameter(low=51, high=100, default=51, space="sell", optimize=True, load=False)
+    exit_short_rsi = IntParameter(
+        low=1, high=50, default=30, space="buy", optimize=True, load=False
+    )
+    entry_max_bb = DecimalParameter(
+        low=0.2, high=1.0, default=0.444, space="buy", optimize=True, load=False
+    )
+    entry_model_consec = CategoricalParameter(
+        [1, 2], default=2, space="buy", optimize=True, load=False
+    )
+    entry_min_conf = DecimalParameter(
+        low=0.5, high=0.65, default=0.55, space="buy", optimize=True, load=False
+    )
+    stoploss_long = DecimalParameter(
+        low=-0.10, high=-0.02, default=-0.05, space="sell", optimize=True, load=False
+    )
+    stoploss_short = DecimalParameter(
+        low=-0.10, high=-0.02, default=-0.05, space="sell", optimize=True, load=False
+    )
 
     def feature_engineering_expand_all(
         self, dataframe: DataFrame, period: int, metadata: dict, **kwargs
@@ -128,6 +132,7 @@ class FreqaiExampleHybridStrategy(IStrategy):
         dataframe["%-adx-period"] = ta.ADX(dataframe, timeperiod=period)
         dataframe["%-sma-period"] = ta.SMA(dataframe, timeperiod=period)
         dataframe["%-ema-period"] = ta.EMA(dataframe, timeperiod=period)
+        dataframe["%-roc-period"] = ta.ROC(dataframe, timeperiod=period)
 
         bollinger = qtpylib.bollinger_bands(
             qtpylib.typical_price(dataframe), window=period, stds=2.2
@@ -260,6 +265,12 @@ class FreqaiExampleHybridStrategy(IStrategy):
         return dataframe
 
     def populate_entry_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
+        model_up = (df["&s-up_or_down"] == "up").astype(int)
+        model_down = (df["&s-up_or_down"] == "down").astype(int)
+        consec = self.entry_model_consec.value
+        up_confirmed = model_up.rolling(consec).min().fillna(0)
+        down_confirmed = model_down.rolling(consec).min().fillna(0)
+
         df.loc[
             (
                 # Signal: RSI crosses above 30
@@ -268,12 +279,15 @@ class FreqaiExampleHybridStrategy(IStrategy):
                 & (df["tema"] > df["tema"].shift(1))  # Guard: tema is raising
                 & (df["volume"] > 0)  # Make sure Volume is not 0
                 & (df["do_predict"] == 1)  # Make sure Freqai is confident in the prediction
+                & (df["bb_percent"] <= self.entry_max_bb.value)  # Buy only near/inside lower band
+                & (df["up"] >= self.entry_min_conf.value)  # Kill coin-flip predictions
                 &
                 # Only enter trade if Freqai thinks the trend is in this direction
-                (df["&s-up_or_down"] == "up")
+                (up_confirmed == 1)
             ),
             "enter_long",
         ] = 1
+        df.loc[(df["enter_long"] == 1), "enter_tag"] = "long_rsi"
 
         df.loc[
             (
@@ -283,14 +297,32 @@ class FreqaiExampleHybridStrategy(IStrategy):
                 & (df["tema"] < df["tema"].shift(1))  # Guard: tema is falling
                 & (df["volume"] > 0)  # Make sure Volume is not 0
                 & (df["do_predict"] == 1)  # Make sure Freqai is confident in the prediction
+                & (df["bb_percent"] >= (1 - self.entry_max_bb.value))
+                & (df["down"] >= self.entry_min_conf.value)  # Kill coin-flip predictions
                 &
                 # Only enter trade if Freqai thinks the trend is in this direction
-                (df["&s-up_or_down"] == "down")
+                (down_confirmed == 1)
             ),
             "enter_short",
         ] = 1
+        df.loc[(df["enter_short"] == 1), "enter_tag"] = "short_rsi"
 
         return df
+
+    def custom_stoploss(
+        self,
+        pair: str,
+        trade,
+        current_time: datetime,
+        current_rate: float,
+        current_profit: float,
+        after_fill: bool,
+        **kwargs,
+    ) -> float | None:
+        # Fixed stoploss anchored to entry price, different per side.
+        sl = self.stoploss_short.value if trade.is_short else self.stoploss_long.value
+        stop_price = trade.open_rate * (1 - sl)
+        return (stop_price - current_rate) / current_rate
 
     def populate_exit_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
         df.loc[

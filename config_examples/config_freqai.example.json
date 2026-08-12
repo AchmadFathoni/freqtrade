@@ -55,7 +55,7 @@
         "backtest_period_days": 7,
         "save_backtest_models": false,
         "live_retrain_hours": 0,
-        "identifier": "unique-id",
+        "identifier": "Hybrid-lightgbm",
         "feature_parameters": {
             "include_timeframes": [
                 "3m",
@@ -68,10 +68,11 @@
             ],
             "label_period_candles": 20,
             "include_shifted_candles": 2,
-            "DI_threshold": 0.9,
+            "DI_threshold": 2.0,
             "weight_factor": 0.9,
-            "principal_component_analysis": false,
-            "use_SVM_to_remove_outliers": true,
+            "principal_component_analysis": true,
+            "use_SVM_to_remove_outliers": false,
+            "use_DBSCAN_to_remove_outliers": false,
             "indicator_periods_candles": [
                 10,
                 20
@@ -79,10 +80,19 @@
             "plot_feature_importances": 0
         },
         "data_split_parameters": {
-            "test_size": 0.33,
+            "test_size": 0.2,
             "random_state": 1
         },
-        "model_training_parameters": {}
+        "model_training_parameters": {
+            "n_estimators": 150,
+            "learning_rate": 0.05,
+            "num_leaves": 8,
+            "feature_fraction": 0.6,
+            "bagging_fraction": 0.7,
+            "bagging_freq": 1,
+            "min_child_samples": 30,
+            "random_state": 42
+        }
     },
     "bot_name": "",
     "force_entry_enable": true,
