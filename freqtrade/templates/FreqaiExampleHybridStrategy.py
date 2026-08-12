@@ -281,6 +281,7 @@ class FreqaiExampleHybridStrategy(IStrategy):
                 & (df["do_predict"] == 1)  # Make sure Freqai is confident in the prediction
                 & (df["bb_percent"] <= self.entry_max_bb.value)  # Buy only near/inside lower band
                 & (df["up"] >= self.entry_min_conf.value)  # Kill coin-flip predictions
+                & (df["close"] > df["close"].rolling(480).mean())  # Only long with the trend
                 &
                 # Only enter trade if Freqai thinks the trend is in this direction
                 (up_confirmed == 1)
@@ -320,8 +321,12 @@ class FreqaiExampleHybridStrategy(IStrategy):
         **kwargs,
     ) -> float | None:
         # Fixed stoploss anchored to entry price, different per side.
+        # sl is negative; longs stop below entry (1 + sl), shorts above entry (1 - sl).
         sl = self.stoploss_short.value if trade.is_short else self.stoploss_long.value
-        stop_price = trade.open_rate * (1 - sl)
+        if trade.is_short:
+            stop_price = trade.open_rate * (1 - sl)
+        else:
+            stop_price = trade.open_rate * (1 + sl)
         return (stop_price - current_rate) / current_rate
 
     def populate_exit_trend(self, df: DataFrame, metadata: dict) -> DataFrame:
