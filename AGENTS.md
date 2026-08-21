@@ -62,6 +62,13 @@ python build_helpers/build_epub.py --no-calibre   # file-only build
 - `freqtrade new-strategy -s MyStrategy` scaffolds into `user_data/strategies/`.
 - Live vs dry-run: config `dry_run: true` (or `--dry-run`); `freqtrade trade -c <config>`.
 
+## FreqAI model quirk & FreqAI hyperopt
+
+- **Model training parameters live in the config, not the strategy**: `freqai.model_training_parameters` (e.g. `learning_rate`, `n_estimators`, `num_leaves`) in the config file (docs: `freqai-running.md` "Controlling the model learning process"). They are **not** hyperoptable — strategy `Parameter`s cannot touch them. Tuning them = edit the config + rerun the backtest.
+- **Trained models and predictions are cached per `identifier`** (verified in `freqai_interface.py` backtesting loop: `if not self.model_exists(dk): train else: load`). A rerun with the same config/identifier/timerange loads models from `user_data/models/<identifier>/` and reuses saved predictions instead of retraining. **Changing `learning_rate` (or any model/feature/target setting) with the same `identifier` silently reuses stale models — always bump `identifier` to force retraining.** `save_backtest_models: false` skips saving new models (metadata only) but still loads any that already exist.
+- **Canonical backtesting command for this branch** (from zsh history — the run that produced the latest results in `user_data/backtest_results/`): `freqtrade backtesting --strategy FreqaiExampleHybridStrategy --strategy-path freqtrade/templates --config config_examples/config_freqai.example.json --freqaimodel LightGBMClassifier --timerange 20210101-20260101`
+- **FreqAI hyperopt** (docs: `freqai-running.md` "Hyperopt"): same command as regular hyperopt plus `--freqaimodel`. Restrictions: `--analyze-per-epoch` is incompatible; indicators in `feature_engineering_*()` / `set_freqai_targets()` and model parameters cannot be hyperopted. Only hyperopt entry/exit thresholds and criteria — parameters that do not change predictions — because hyperopt runs on the cached predictions, not on retrained models.
+
 ## Dev workflow
 
 - Env: Nix flake + direnv (`use flake`); `.venv` (Python 3.13, editable install, TA-Lib present). Personal extras in `requirements-tony.txt`. Install: `pip install -r requirements-dev.txt && pip install -e ft_client/ && pip install -e .`

@@ -1,8 +1,7 @@
 {
   description = "Freqtrade crypto trading bot";
   inputs = {
-    # nixpkgs.url = "nixpkgs/nixos-25.05";
-    nixpkgs.url = "git+file:///home/toni/Documents/source/nixpkgs";
+     nixpkgs.url = "nixpkgs/nixos-26.05";
   };
   outputs = {
     nixpkgs,
