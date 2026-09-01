@@ -9,7 +9,6 @@ import logging
 import random
 import threading
 import webbrowser
-from datetime import datetime
 from math import ceil
 from pathlib import Path
 from time import sleep
@@ -29,7 +28,7 @@ from freqtrade.optimize.hyperopt_tools import (
     HyperoptTools,
     hyperopt_serializer,
 )
-from freqtrade.util import get_progress_tracker
+from freqtrade.util import dt_now, get_progress_tracker
 
 
 logger = logging.getLogger(__name__)
@@ -52,7 +51,7 @@ class Hyperopt:
         self.analyze_per_epoch = self.config.get("analyze_per_epoch", False)
         HyperoptStateContainer.set_state(HyperoptState.STARTUP)
 
-        time_now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        time_now = dt_now().strftime("%Y-%m-%d_%H-%M-%S")
         strategy = str(self.config["strategy"])
         self.results_file: Path = (
             self.config["user_data_dir"]
@@ -147,7 +146,7 @@ class Hyperopt:
 
     def get_optuna_asked_points(self, n_points: int, dimensions: dict) -> list[Any]:
         asked: list[list[Any]] = []
-        for i in range(n_points):
+        for _i in range(n_points):
             asked.append(self.opt.ask(dimensions))
         return asked
 

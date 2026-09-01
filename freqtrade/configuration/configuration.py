@@ -489,8 +489,6 @@ class Configuration:
             config, argname="freqaimodel_path", logstring="Using freqaimodel path: {}"
         )
 
-        return
-
     def _args_to_config(
         self,
         config: Config,
